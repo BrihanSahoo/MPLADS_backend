@@ -3,6 +3,12 @@ from database.database import supabase
 from schemas.user_schema import LoginRequest, RegisterMPRequest, RegisterDMRequest, UserRole
 from fastapi import HTTPException
 
+
+
+
+
+
+# ---------- LOGIN HELPER ----------
 async def login_user_details(user: LoginRequest) -> dict:
     
     role = user.role.value
@@ -46,6 +52,11 @@ async def login_user_details(user: LoginRequest) -> dict:
         raise HTTPException(status_code=400, detail="Invalid role specified")
 
 
+
+
+
+
+# ---------- LOGIN USER ----------
 async def login(user: LoginRequest):
     
     payload = await login_user_details(user)
@@ -53,11 +64,54 @@ async def login(user: LoginRequest):
     return {"access_token": token, "token_type": "bearer"}
 
 
+
+
+
+
 async def me(current_user: dict):
     
     return current_user
 
 
+
+
+
+# ---------- GET ALL DM ----------
+async def get_all_dm():
+    
+    result = (
+        supabase.table("mplads_dm").select("id,dist,state,dm_name").execute()
+    )
+    
+    return result.data
+
+
+
+
+
+
+
+# ---------- GET DM BY DISTRICT ----------
+async def get_dm_by_dist(dist_name:str):
+    
+    result = (
+        supabase.table("mplads_dm").select("id,dist,state,dm_name").eq("dist",dist_name.upper()).execute()
+    )
+    
+    return result.data
+
+
+
+
+
+
+
+
+
+
+
+
+# ---------- REGISTER NEW MP ----------
 async def register_mp(user: RegisterMPRequest):
    
     existing_user = (
@@ -66,6 +120,12 @@ async def register_mp(user: RegisterMPRequest):
     if existing_user.data:
         raise HTTPException(status_code=409, detail="Username already exists for an MP")
 
+    existing_dm = (
+        supabase.table("mplads_dm").select("*").eq("id",user.dm_id).execute()
+    )
+    
+    if not existing_dm.data:
+        raise HTTPException(status_code=409,detail="No DM found with this id")
     db_payload = {
         "username": user.username,
         "password_hash": user.password,
@@ -88,6 +148,16 @@ async def register_mp(user: RegisterMPRequest):
     }
 
 
+
+
+
+
+
+
+
+
+
+# ---------- REGISTER NEW DM ----------
 async def register_dm(user: RegisterDMRequest):
 
     existing_user = (

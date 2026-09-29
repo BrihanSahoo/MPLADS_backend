@@ -89,9 +89,7 @@ async def create_new_project(
     files: Optional[List[UploadFile]] = File(None),
     mp: dict = None 
 ):
-    """
-    Submits a new project proposal (Step 1 & 2) and uploads documents to Cloudinary.
-    """
+    
     
     if not mp or "id" not in mp:
         raise HTTPException(status_code=401, detail="Unauthorized MP context")
@@ -151,7 +149,6 @@ async def create_new_project(
         "latitude": None,
         "longitude": None,
         "rejection_reason": None,
-        "document_link": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -169,6 +166,7 @@ async def create_new_project(
         
     new_project = response.data[0]
     project_id = new_project["id"]
+    constituency = new_project["constituency"]
 
     uploaded_documents = []
     first_doc_url = None
@@ -186,7 +184,8 @@ async def create_new_project(
                     "file_name": file.filename,
                     "file_url": file_url,
                     "uploaded_by": f"MP {mp.get('mp_name', 'Office')}",
-                    "uploaded_at": datetime.now(timezone.utc).isoformat()
+                    "uploaded_at": datetime.now(timezone.utc).isoformat(),
+                    "constituency" : constituency.upper()
                 }
 
                 doc_response = (
@@ -202,12 +201,6 @@ async def create_new_project(
             except Exception as e:
                 print(f"Error uploading file {file.filename}: {str(e)}")
                 continue
-
-    if first_doc_url:
-        supabase.table("mplads_new_projects").update(
-            {"document_link": first_doc_url}
-        ).eq("id", project_id).execute()
-        new_project["document_link"] = first_doc_url
 
     return {
         "message": "Project created successfully",
@@ -271,30 +264,23 @@ async def dm_district_projects(dm: dict, search: Optional[str] = None):
                 "high_risk_count": 0
             }
             
-        # Aggregate metrics
         agg = aggregated_data[m_id]
-        
-        # Count active projects (Not Completed and Not Rejected)
+
         if p.get("status") not in (ProjectStatus.COMPLETED.value, ProjectStatus.REJECTED.value):
             agg["active_projects"] += 1
-            
-        # Sum utilized funds
+
         agg["utilized_amount"] += (p.get("utilized_amount") or 0)
-        
-        # Sum risk scores for average calculation
+
         agg["total_risk_score"] += (p.get("risk_score") or 0)
         agg["project_count"] += 1
-        
-        # Count high/critical risk projects (for the "X High+" badge)
+
         if p.get("risk_level") in (ProjectRiskLevel.HIGH.value, ProjectRiskLevel.CRITICAL.value):
             agg["high_risk_count"] += 1
 
-    # 4. Format final output to match UI cards
     final_output = []
     for m_id, data in aggregated_data.items():
         avg_risk = data["total_risk_score"] / data["project_count"] if data["project_count"] > 0 else 0
-        
-        # Determine overall risk badge for the card (Low, Moderate, High)
+
         if avg_risk > 70:
             avg_risk_level = ProjectRiskLevel.HIGH.value
         elif avg_risk > 40:
@@ -312,8 +298,7 @@ async def dm_district_projects(dm: dict, search: Optional[str] = None):
             "avg_risk_level": avg_risk_level,
             "high_risk_projects": data["high_risk_count"]
         })
-        
-    # 5. Apply Search Filter (Search by MP name or constituency)
+
     if search:
         search_lower = search.lower()
         final_output = [
@@ -321,7 +306,6 @@ async def dm_district_projects(dm: dict, search: Optional[str] = None):
             if search_lower in mp["mp_name"].lower() or search_lower in mp["constituency"].lower()
         ]
 
-    # Sort by highest risk first
     final_output.sort(key=lambda x: x["avg_risk_score"], reverse=True)
     
     return final_output
@@ -345,7 +329,6 @@ async def dm_mp_projects(
     Fetches a specific MP's details, aggregated stats, and paginated project list for the DA Portal.
     Matches the "MP Details" page.
     """
-    # 1. Fetch MP Details (Name, Constituency)
     mp_result = (
         supabase
         .table("mplads_mp")
@@ -360,7 +343,6 @@ async def dm_mp_projects(
         
     mp_info = mp_result.data[0]
 
-    # 2. Build Base Query for Projects
     base_query = (
         supabase
         .table("mplads_new_projects")

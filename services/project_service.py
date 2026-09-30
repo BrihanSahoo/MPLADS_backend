@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone,date
 from typing import Optional, List
 
 from fastapi import File, Form, HTTPException, Query, UploadFile
@@ -167,6 +167,7 @@ async def create_new_project(
     new_project = response.data[0]
     project_id = new_project["id"]
     constituency = new_project["constituency"]
+    dist = new_project["district"]
 
     uploaded_documents = []
     first_doc_url = None
@@ -185,7 +186,9 @@ async def create_new_project(
                     "file_url": file_url,
                     "uploaded_by": f"MP {mp.get('mp_name', 'Office')}",
                     "uploaded_at": datetime.now(timezone.utc).isoformat(),
-                    "constituency" : constituency.upper()
+                    "constituency" : constituency.upper(),
+                    "district" : dist,
+                    "upload_date" : date.today()
                 }
 
                 doc_response = (

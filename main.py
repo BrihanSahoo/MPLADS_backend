@@ -4,6 +4,7 @@ from routers.projects_route import project_router
 from routers.report_route import report_router
 from routers.user_router import user_router
 from routers.document_router import document_router
+from routers.notification_router import notification_router
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -24,4 +25,5 @@ app.include_router(project_router)
 app.include_router(report_router)
 app.include_router(user_router)
 app.include_router(document_router)
+app.include_router(notification_router)
 

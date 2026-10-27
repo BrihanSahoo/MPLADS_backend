@@ -14,7 +14,7 @@ app = FastAPI(title="MPLADS Risk Monitor API", version="1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://mplad-risk-monitor.vercel.app", "http://localhost:3000"],
+    allow_origins=["https://mplad-risk-monitor.vercel.app", "http://localhost:3000","http://localhost:4173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
